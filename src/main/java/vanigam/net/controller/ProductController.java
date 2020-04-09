@@ -1,86 +1,64 @@
 package vanigam.net.controller;
 
-import javax.validation.Valid;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 
-import vanigam.net.converter.ProductToProductForm;
 import vanigam.net.domain.Product;
-import vanigam.net.form.ProductForm;
-import vanigam.net.service.ProductService;
+import vanigam.net.repository.ProductRepository;
 
-/**
- * Created by vyn on 07/04/2020
- */
-@Controller
+/** Created by vyn on 09-Apr-2020 */
+
+@RestController
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class ProductController {
-    private ProductService productService;
 
-    private ProductToProductForm productToProductForm;
+	@Autowired
+    ProductRepository productRepository;
 
-    @Autowired
-    public void setProductToProductForm(ProductToProductForm productToProductForm) {
-        this.productToProductForm = productToProductForm;
+    @RequestMapping(method=RequestMethod.GET, value="/api/products")
+    public Iterable<Product> product() {
+        return productRepository.findAll();
     }
 
-    @Autowired
-    public void setProductService(ProductService productService) {
-        this.productService = productService;
+    @RequestMapping(method=RequestMethod.POST, value="/api/products")
+    public String save(@RequestBody Product product) {
+        productRepository.save(product);
+
+        return product.getId();
     }
 
-    @RequestMapping("/")
-    public String redirToList(){
-        return "redirect:/product/list";
+    @RequestMapping(method=RequestMethod.GET, value="/api/products/{id}")
+    public Optional<Product> show(@PathVariable String id) {
+        return productRepository.findById(id);
     }
 
-    @RequestMapping({"/product/list", "/product"})
-    public String listProducts(Model model){
-        model.addAttribute("products", productService.listAll());
-        return "product/list";
+    @RequestMapping(method=RequestMethod.PUT, value="/api/products/{id}")
+    public Product update(@PathVariable String id, @RequestBody Product product) {
+    	Optional<Product> prod = productRepository.findById(id);
+        if(product.getProdName() != null)
+            prod.get().setProdName(product.getProdName());
+        if(product.getProdDesc() != null)
+            prod.get().setProdDesc(product.getProdDesc());
+        if(product.getProdPrice() != null)
+            prod.get().setProdPrice(product.getProdPrice());
+        if(product.getProdImage() != null)
+            prod.get().setProdImage(product.getProdImage());
+        productRepository.save(prod.get());
+        return prod.get();
     }
 
-    @RequestMapping("/product/show/{id}")
-    public String getProduct(@PathVariable String id, Model model){
-        model.addAttribute("product", productService.getById(id));
-        return "product/show";
-    }
+    @RequestMapping(method=RequestMethod.DELETE, value="/api/products/{id}")
+    public String delete(@PathVariable String id) {
+        Optional<Product> product = productRepository.findById(id);
+        productRepository.delete(product.get());
 
-    @RequestMapping("product/edit/{id}")
-    public String edit(@PathVariable String id, Model model){
-        Product product = productService.getById(id);
-        ProductForm productForm = productToProductForm.convert(product);
-
-        model.addAttribute("productForm", productForm);
-        return "product/productform";
-    }
-
-    @RequestMapping("/product/new")
-    public String newProduct(Model model){
-        model.addAttribute("productForm", new ProductForm());
-        return "product/productform";
-    }
-
-    @RequestMapping(value = "/product", method = RequestMethod.POST)
-    public String saveOrUpdateProduct(@Valid ProductForm productForm, BindingResult bindingResult){
-
-        if(bindingResult.hasErrors()){
-            return "product/productform";
-        }
-
-        Product savedProduct = productService.saveOrUpdateProductForm(productForm);
-
-        return "redirect:/product/show/" + savedProduct.getId();
-    }
-
-    @RequestMapping("/product/delete/{id}")
-    public String delete(@PathVariable String id){
-        productService.delete(id);
-        return "redirect:/product/list";
+        return "product deleted";
     }
 }
